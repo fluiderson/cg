@@ -6,7 +6,8 @@
 //! change then also changes a cargo-gears file, which bumps its version and lands the
 //! commit in its CHANGELOG.md. CI rejects a stale marker
 //! (`tools/scripts/lints-tree.sh check`); this script only saves running
-//! `make lints-tree` by hand.
+//! `make lints-tree` by hand. It does nothing when Dylint builds the lints to run
+//! them, so a user's checkout is never touched.
 //!
 //! It reruns when any hashed file or the marker itself changes. Watching the marker
 //! matters: Cargo replays the warnings of the last run, so without a rerun after the
@@ -26,6 +27,13 @@ fn main() {
 }
 
 fn update_marker() -> Result<(), String> {
+    // Dylint is building the lints for `cargo gears lint` (from a clone, or from Cargo's
+    // git checkouts for an installed CLI), not for someone changing them.
+    println!("cargo:rerun-if-env-changed=DYLINT_BUILDING_LIBRARIES");
+    if env::var_os("DYLINT_BUILDING_LIBRARIES").is_some() {
+        return Ok(());
+    }
+
     let lints_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?);
     let cli_dir = lints_dir.join("../cargo-gears");
     // Outside a cargo-gears checkout there is no marker to keep in sync. A missing
